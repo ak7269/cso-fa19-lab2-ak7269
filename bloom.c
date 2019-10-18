@@ -1,37 +1,37 @@
 
-/***********************************************************
- File Name: bloom.c
- Description: implementation of bloom filter goes here 
- **********************************************************/
+	/***********************************************************
+	 File Name: bloom.c
+	 Description: implementation of bloom filter goes here 
+	 **********************************************************/
 
-#include <assert.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
+	#include <assert.h>
+	#include <string.h>
+	#include <stdlib.h>
+	#include <stdio.h>
 
-#include "rkgrep.h"
+	#include "rkgrep.h"
 
-/* Constants for bloom filter implementation */
+	/* Constants for bloom filter implementation */
 const int H1PRIME = 4189793;
 const int H2PRIME = 3296731;
 
 int BLOOM_HASH_NUM = 10;
 
-/* The hash function used by the bloom filter */
+	/* The hash function used by the bloom filter */
 int
-hash_i(int i, /* which of the BLOOM_HASH_NUM hash functions to use */ 
-       long long x /* the element (a RK value) to be hashed */)
+	hash_i(int i, /* which of the BLOOM_HASH_NUM hash functions to use */ 
+	       long long x /* the element (a RK value) to be hashed */)
 {
 	return ((x % H1PRIME) + i*(x % H2PRIME) + 1 + i*i);
 }
 
-/* Initialize a bloom filter by allocating a character array that can pack bsz bits.
- * The size of the character array is bsz/8 bytes
- * All bytes of the allocated character are set to zero (i.e. all bits in the bloom filter
- * are initialized to zero).
- */
+	/* Initialize a bloom filter by allocating a character array that can pack bsz bits.
+	 * The size of the character array is bsz/8 bytes
+	 * All bytes of the allocated character are set to zero (i.e. all bits in the bloom filter
+	 * are initialized to zero).
+	 */
 bloom_filter *
-bloom_init(int bsz /* size of bitmap in bits*/ )
+	bloom_init(int bsz /* size of bitmap in bits*/ )
 {
 	assert((bsz % 8) == 0);
 
@@ -46,29 +46,52 @@ bloom_init(int bsz /* size of bitmap in bits*/ )
 	return bf;
 }
 
-/* Add elm into the given bloom filter. Obtain BLOOM_HASH_NUM bitmap positions by feeding 
- * elm to the given hash_i() function and set each position (modulo bitmap size) to 1.
- * We use a "big-endian" like bit-ordering convention for the bloom filter implemention.
- * As an example, to set bit-position-at-8 to 1, the function sets the left-most
- * bit of the second byte in the character array that represents the bitmap to 1.
-*/
+	/* Add elm into the given bloom filter. Obtain BLOOM_HASH_NUM bitmap positions by feeding 
+	 * elm to the given hash_i() function and set each position (modulo bitmap size) to 1.
+	 * We use a "big-endian" like bit-ordering convention for the bloom filter implemention.
+	 * As an example, to set bit-position-at-8 to 1, the function sets the left-most
+	 * bit of the second byte in the character array that represents the bitmap to 1.
+	*/
 void
 bloom_add(bloom_filter *bf,
-	long long elm /* the element to be added (a RK hash value) */)
+		long long elm /* the element to be added (a RK hash value) */)
 {
-	/* Your code here */
+
+	int j=BLOOM_HASH_NUM;//storing the number of hash functions 
+	for(int i=0;i<j;i++)
+	{
+		unsigned int pos=hash_i(i,elm)%(bf->bsz);//modulo size to prevent from receiving a huge value 
+		unsigned int p1=pos/8;//finding the byte postion 
+		unsigned int p2=pos%8;//finding the position inside the byte 
+		bf->buf[p1] = bf->buf[p1]|0x80 >> p2;//or conditon to set 1 at that p2 of p1 byte positon
+	}
 }
 
-/* Query if elm is in the given bloom filter (with high probability). Obtain 
- * BLOOM_HASH_NUM bitmap positions by feeding elm to the given hash_i() function 
- * and check whether those positions are set (i.e. have 1). If all those positions 
- * are set, then elm is found in the bloom filter and the function returns true. 
- * */ 
+	/* Query if elm is in the given bloom filter (with high probability). Obtain 
+	 * BLOOM_HASH_NUM bitmap positions by feeding elm to the given hash_i() function 
+	 * and check whether those positions are set (i.e. have 1). If all those positions 
+	 * are set, then elm is found in the bloom filter and the function returns true. 
+	 * */ 
 bool
 bloom_query(bloom_filter *f,
-	long long elm /* the query element (a RK hash value) */ )
+		long long elm /* the query element (a RK hash value) */ )
 {
-	/* Your code here */
+
+	int c=0;
+	int j=BLOOM_HASH_NUM;
+	for(int i=0;i<j;i++)
+	{
+		int pos=hash_i(i,elm)%(f->bsz);
+		int p1=pos/8;
+		if((f->buf[p1])==(f->buf[p1])|0x80)
+		{
+			c++;//increasing the counter if positons received from the funciton have a 1 in the bloom filter at that positon
+		}
+
+	}
+	if (c==j)//if all the function's values have a 1 set at their respective postions then the pattern is present in the bloom filter 
+		return true;
+
 	return false;
 }
 
@@ -80,18 +103,18 @@ bloom_free(bloom_filter *bf)
 }
 
 
-/* bloom_bit_at_pos returns whether the bit at position "pos" of the bitmap 
- * is set or not
- */
+	/* bloom_bit_at_pos returns whether the bit at position "pos" of the bitmap 
+	 * is set or not
+	 */
 bool
 bloom_bit_at_pos(bloom_filter *bf, int pos)
 {
 	assert(pos < bf->bsz);
-	// which_byte maps "pos" position of the bitmap to f->buf array index
+		// which_byte maps "pos" position of the bitmap to f->buf array index
 	int which_byte = pos / 8;
-	// which_bit maps "pos" position of the bitmap to the bit position in f->buf[which_byte]
+		// which_bit maps "pos" position of the bitmap to the bit position in f->buf[which_byte]
 	int which_bit = pos % 8;
 	int mask = 0x1 << (7-which_bit);
-	// extract the bit at the which_bit position of the byte (f->buf[which_byte])
+		// extract the bit at the which_bit position of the byte (f->buf[which_byte])
 	return bf->buf[which_byte] & mask;
 }
